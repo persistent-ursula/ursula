@@ -25,7 +25,7 @@
   roles:
     - role: logging
       tags: ['common', 'logging']
-      when: logging.enabled|default('True')|bool
+      when: logging.enabled|default('True')|bool and ansible_architecture != "ppc64le"
   environment: "{{ env_vars|default({}) }}"
 
 - name: setup IPv6 router advertisements
@@ -79,9 +79,10 @@
   roles:
     - role: percona-common
       tags: ['infra', 'percona']
-
+      when: ansible_architecture != "ppc64le"
     - role: percona-arbiter
       tags: ['infra', 'percona']
+      when: ansible_architecture != "ppc64le" 
   environment: "{{ env_vars|default({}) }}"
 
 - name: configure percona backups on primary
@@ -98,7 +99,6 @@
     - role: mongodb-server
       tags: ['mongodb', 'mongodb-server']
       when: ceilometer.enabled|bool
-  environment: "{{ env_vars|default({}) }}"
 
 - name: install mongodb arbiter
   gather_facts: force
@@ -107,7 +107,6 @@
     - role: mongodb-arbiter
       tags: ['mongodb', 'mongodb-arbiter']
       when: ceilometer.enabled|bool
-  environment: "{{ env_vars|default({}) }}"
 
 - name: memcached for keystone and horizon
   gather_facts: force
@@ -115,6 +114,14 @@
   roles:
     - role: memcached
       tags: ['infra']
+  environment: "{{ env_vars|default({}) }}"
+
+- name: openvswitch
+  hosts: network:compute
+  roles:
+    - role: openvswitch
+      when: neutron.plugin == 'ovs'
+      tags: ['infra', 'data', 'openvswitch']
   environment: "{{ env_vars|default({}) }}"
 
 - name: controller haproxy
@@ -139,7 +146,6 @@
   roles:
     - role: ceph-monitor
       tags: ['ceph', 'ceph-monitor']
-  environment: "{{ env_vars|default({}) }}"
 
 - name: ceph osds
   gather_facts: force
@@ -147,7 +153,6 @@
   roles:
     - role: ceph-osd
       tags: ['ceph', 'ceph-osd']
-  environment: "{{ env_vars|default({}) }}"
 
 # OPENSTACK SERVICES
 - name: openstack client tools
@@ -161,23 +166,32 @@
   gather_facts: force
   hosts: controller
   roles:
+    - role: openstack-database
+      database_name: keystone
+      tags: ['openstack', 'keystone', 'control']
     - role: keystone
       tags: ['openstack', 'keystone', 'control']
   environment: "{{ env_vars|default({}) }}"
 
 - name: keystone setup
   hosts: controller[0]
+  vars_files:
+    - roles/keystone/defaults/main.yml
+
   roles:
     - role: keystone-setup
       keystone_configured: false
       tags: ['openstack', 'setup', 'keystone-setup']
-      when: not keystone_configured
+      #when: not keystone_configured
   environment: "{{ env_vars|default({}) }}"
 
 - name: glance code and config
   gather_facts: force
   hosts: controller
   roles:
+    - role: openstack-database
+      database_name: glance
+      tags: ['openstack', 'glance', 'control', 'ceph']
     - role: glance
       tags: ['openstack', 'glance', 'control', 'ceph']
   environment: "{{ env_vars|default({}) }}"
@@ -223,8 +237,7 @@
   roles:
     - role: ceph-compute
       tags: ['ceph', 'ceph-compute']
-      when: ceph.enabled|bool and ansible_architecture != "ppc64le"
-  environment: "{{ env_vars|default({}) }}"
+      when: ceph.enabled|bool
 
 - name: neutron control plane
   gather_facts: force
@@ -285,6 +298,10 @@
   gather_facts: force
   hosts: controller
   roles:
+    - role: openstack-database
+      database_name: heat
+      tags: ['openstack', 'heat', 'control']
+      when: heat.enabled|bool
     - role: heat
       tags: ['openstack', 'heat', 'control']
       when: heat.enabled|bool
@@ -297,7 +314,6 @@
     - role: ceilometer-control
       tags: ['openstack', 'ceilometer', 'control']
       when: ceilometer.enabled|bool
-  environment: "{{ env_vars|default({}) }}"
 
 - name: ceilometer data plane
   gather_facts: force
@@ -306,12 +322,15 @@
     - role: ceilometer-data
       tags: ['openstack', 'ceilometer', 'data']
       when: ceilometer.enabled|bool
-  environment: "{{ env_vars|default({}) }}"
 
 - name: magnum code and config
   gather_facts: force
   hosts: controller
   roles:
+    - role: openstack-database
+      database_name: magnum
+      tags: ['openstack', 'magnum', 'control']
+      when: magnum.enabled|bool
     - role: magnum
       tags: ['openstack', 'magnum', 'control']
       when: magnum.enabled|bool
@@ -345,5 +364,14 @@
   roles:
     - role: 'openstack-network'
       tags: ['openstack', 'setup', 'openstack-network']
-      when: neutron.enable_external_interface|default('false')|bool
+      when: neutron.enable_external_interface|bool
+  environment: "{{ env_vars|default({}) }}"
+
+
+- name: extra neutron setup
+  hosts: network:compute
+  tasks:
+    - name: restart neutron-openvswitch-agent to ensure VXLAN mesh is configured
+      service: name=neutron-openvswitch-agent state=restarted
+      when: neutron.plugin == 'ovs'
   environment: "{{ env_vars|default({}) }}"

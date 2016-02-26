@@ -7,6 +7,3 @@ xtradb:
 
 percona:
   replication: False
-
-neutron:
-  enable_external_interface: True

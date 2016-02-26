@@ -5,8 +5,8 @@ apt_repos:
     repo: 'https://get.docker.com/ubuntu'
     key_url: 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xD8576A8BA88D21E9'
   bbg_ubuntu:
-    repo: 'https://apt-mirror.openstack.blueboxgrid.com/bbg_ubuntu/ubuntu'
-    key_url: 'https://apt-mirror.openstack.blueboxgrid.com/keys/bbg_ubuntu.key'
+    repo: 'http://repo.openstack.blueboxgrid.com/ubuntu/'
+    key_url: 'http://repo.openstack.blueboxgrid.com/blue_box_cloud.gpg.key'
   blueboxcloud_giftwrap:
     repo: 'https://packagecloud.io/blueboxcloud/giftwrap/ubuntu/'
     key_url: 'https://packagecloud.io/gpg.key'
@@ -16,8 +16,6 @@ apt_repos:
   sensu:
     repo: 'http://repos.sensuapp.org/apt'
     key_url: 'https://repos.sensuapp.org/apt/pubkey.gpg'
-    distribution: 'sensu'
-    components: 'main'
   haproxy:
     repo: 'http://ppa.launchpad.net/vbernat/haproxy-1.5/ubuntu'
     key_url: 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xCFFB779AADC995E4F350A060505D97A41C61B9CD'

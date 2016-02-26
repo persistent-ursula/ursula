@@ -2,9 +2,7 @@
 dependencies:
   - role: endpoints
   - role: monitoring-common
-    when: monitoring.enabled|default(True)|bool
   - role: logging-config
-    when: logging.enabled|default(True)|bool
     service: glance
     logdata: "{{ glance.logs }}"
   - role: openstack-source
@@ -22,5 +20,3 @@ dependencies:
     when: collectd is defined and collectd.enabled|bool
   - role: ceph-common
     when: ceph.enabled|bool
-  - role: openstack-database
-    database_name: glance

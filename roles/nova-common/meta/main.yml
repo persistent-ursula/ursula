@@ -3,13 +3,11 @@ dependencies:
   - role: endpoints
   - role: apt-repos
     repos:
-      - repo: 'deb {{ apt_repos.cloud_archive.repo }} {{ ansible_distribution_release }}-updates/kilo main'
+      - repo: 'deb {{ apt_repos.cloud_archive.repo }} precise-updates/icehouse main'
         key_package: ubuntu-cloud-keyring
-    when: ansible_architecture == "ppc64le"
+    when: ansible_distribution_version == "12.04" and ansible_architecture != "ppc64le"
   - role: monitoring-common
-    when: monitoring.enabled|default(True)|bool
   - role: logging-config
-    when: logging.enabled|default(True)|bool
     service: nova
     logdata: "{{ nova.logs }}"
   - role: openstack-source

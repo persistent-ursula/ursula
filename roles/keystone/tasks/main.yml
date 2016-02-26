@@ -31,43 +31,9 @@
     - etype: other
       permission: r
 
-- name: set uwsgi path (source install)
-  set_fact: uwsgi_path={{ openstack_source.virtualenv_base }}/keystone/bin/uwsgi
-  when: openstack_install_method == 'source'
-  
-- name: set uwsgi path (package install)
-  set_fact:
-    uwsgi_path: "{{ lookup('items', 'openstack_package.virtualenv_base') }}/keystone/bin/uwsgi"
-  when: openstack_install_method == 'package'
-  
-- name: install keystone uwsgi service
-  template: src=etc/init/keystone.conf
-            dest=/etc/init/keystone.conf mode=0644
-  
-- name: Creates keystone uwsgi and httpd directories
-  file: path={{ item }} state=directory
-        owner=keystone group=keystone mode=0775
-  with_items:
-    - /var/www/keystone 
-    - /etc/keystone/uwsgi
-
-- name: install keystone uwsgi service
-  template: src=var/www/keystone/keystone.py
-            dest=/var/www/keystone/{{ item }} mode=0775
-            owner=keystone group=keystone
-  with_items:
-    - admin
-    - main
-                    
-- name: configure keystone admin wsgi
-  template: src=etc/keystone/uwsgi/keystone-admin.ini
-            dest=/etc/keystone/uwsgi/keystone-admin.ini mode=0775
-            owner=keystone group=keystone
-
-- name: configure keystone public wsgi
-  template: src=etc/keystone/uwsgi/keystone-main.ini
-            dest=/etc/keystone/uwsgi/keystone-main.ini mode=0775
-            owner=keystone group=keystone
+- name: install keystone service
+  upstart_service: name=keystone user=keystone cmd=/usr/local/bin/keystone-all
+                   config_dirs=/etc/keystone
 
 - name: configure keystone
   template: src={{ item }} dest=/etc/keystone/
@@ -98,11 +64,9 @@
 
 - name: permit access to keystone
   ufw: rule=allow to_port={{ item }} proto=tcp
-  tags: ufw
   with_items:
     - "{{ endpoints.keystone.port.haproxy_api }}"
     - "{{ endpoints.keystone_admin.port.haproxy_api }}"
-    - "{{ endpoints.keystone_legacy.port.haproxy_api }}"
 
 - name: add cron job to clean up expired tokens
   template:
@@ -127,8 +91,3 @@
     - logrotate
     - logging
   when: logging.enabled|default('True')|bool
-
-- include: serverspec.yml
-  tags:
-    - serverspec
-

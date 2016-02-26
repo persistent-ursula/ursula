@@ -8,7 +8,6 @@
 - name: install nova-compute packages
   apt: pkg={{ item }}
   with_items:
-    - cpu-checker
     - libvirt-bin={{ nova.libvirt_bin_version }}
     - python-libvirt={{ nova.python_libvirt_version }}
     - qemu-kvm={{ nova.qemu_kvm_version }}
@@ -21,10 +20,9 @@
   notify: restart nova services
   when: ansible_distribution_version == "12.04"
 
-- name: install nova-compute packages (trusty)
+- name: install nova-compute packages (trusty and vivid)
   apt: pkg={{ item }}
   with_items:
-    - cpu-checker
     - libvirt-bin
     - python-libvirt
     - qemu-kvm
@@ -34,7 +32,7 @@
     - genisoimage
     - util-linux
   notify: restart nova services
-  when: ansible_distribution_version == "14.04"
+  when: ansible_distribution_version == "14.04" or ansible_distribution_version == "15.04"
 
 # We want to be sure that libvirt python
 # modules are built against the libvirt running on the host, so build
@@ -80,6 +78,10 @@
   lineinfile: dest=/etc/libvirt/qemu.conf regexp="^allow_incoming_qemukvm\s*="
               line="allow_incoming_qemukvm = 1"
   notify: restart libvirt-bin
+
+- name: Installing cpu-checker for kvm
+  apt: pkg=cpu-checker
+  when: "'{{ nova.libvirt_type }}' == 'kvm'"
 
 - name: ensure kvm is supported by cpu and enabled in bios
   command: kvm-ok

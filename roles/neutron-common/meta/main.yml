@@ -2,15 +2,15 @@
 dependencies:
   - role: endpoints
   - role: apt-repos
+    when: ansible_architecture != "ppc64le"
   - role: monitoring-common
-    when: monitoring.enabled|default(True)|bool
   - role: logging-config
-    when: logging.enabled|default(True)|bool
     service: neutron
     logdata: "{{ neutron.logs }}"
   - role: openstack-source
     project_name: neutron
     project_rev: "{{ neutron.source.rev }}"
+    python_requirements: "{{ neutron.source.python_requirements }}"
     rootwrap: True
     alternatives: "{{ neutron.alternatives }}"
     system_dependencies: "{{ neutron.source.system_dependencies }}"

@@ -57,6 +57,7 @@ swift:
 endpoints:
   main:     "{{ fqdn }}"
   db:       "{{ undercloud_floating_ip }}"
+  mongodb:  "{{ hostvars[groups['mongo_db'][0]][primary_interface]['ipv4']['address'] }}"
   rabbit:   "{{ undercloud_floating_ip }}"
   magnum: "{{ fqdn }}"
   identity_uri: https://{{ fqdn }}:35357
@@ -176,7 +177,6 @@ cinder:
   volume_type: file
   volume_file: /opt/stack/cinder-volumes
   volume_file_size: 5G
-  create_vg: True
   #fixed_key: 6a5c55db5e250f234b6af7807dafda77433dddcf372b6d04801a45f578a35aa7
   logging:
     debug: True
@@ -219,8 +219,6 @@ neutron:
       network_name: internal
       ip_version: 4
       cidr: 172.16.255.0/24
-      pool_start: 172.16.255.2
-      pool_end: 172.16.255.254
       enable_dhcp: "true"
       gateway_ip: 172.16.255.1
       dns_nameservers: '8.8.8.8,8.8.4.4'
@@ -256,6 +254,7 @@ neutron:
   tenant_nameservers:
     - 8.8.4.4
     - 8.8.8.8
+  enable_external_interface: True
 
 glance:
   api_workers: 1
@@ -266,7 +265,6 @@ glance:
   images:
     - name: cirros
       url: https://file-mirror.openstack.blueboxgrid.com/cloud-images/cirros-0.3.3-x86_64-disk.img
-      filename: cirros-0.3.3-x86_64-disk.img
 
 keystone:
   token_expiration_in_seconds: 86400
@@ -609,3 +607,7 @@ heat-cfn:
 magnum:
   enabled: True
   debug: True
+
+horizon:
+  logo_url: https://file-mirror.openstack.blueboxgrid.com/horizon-branding/bluebox-u1.1.x.png
+  favicon_url: https://file-mirror.openstack.blueboxgrid.com/horizon-branding/bluebox.ico

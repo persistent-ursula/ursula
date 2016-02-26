@@ -10,8 +10,20 @@
 
 - name: permit VXLAN traffic
   ufw: rule=allow to_port=4789 proto=udp
-  tags: ufw
   when: neutron.plugin == 'ml2' and 'vxlan' in neutron.tunnel_types
+
+- name: install neutron-openvswitch-agent service
+  upstart_service: name=neutron-openvswitch-agent
+                   user=neutron
+                   cmd=/usr/local/bin/neutron-openvswitch-agent
+                   config_dirs=/etc/neutron
+                   config_files=/etc/neutron/neutron.conf,/etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini
+                   prestart_script=/usr/local/bin/neutron-ovs-cleanup
+  when: neutron.plugin == 'ovs'
+
+- name: start neutron-openvswitch-agent
+  service: name=neutron-openvswitch-agent state=started
+  when: neutron.plugin == 'ovs'
 
 - name: ml2 dataplane config
   template: src=etc/neutron/plugins/ml2/ml2_plugin_dataplane.ini
@@ -29,6 +41,14 @@
                    config_files=/etc/neutron/neutron.conf,/etc/neutron/plugins/ml2/ml2_plugin.ini,/etc/neutron/plugins/ml2/ml2_plugin_dataplane.ini
   when: neutron.plugin == 'ml2'
 
+- name: install neutron-linuxbridge-agentservice for ubuntu 15.04, Copy neutron-linuxbridge-agent.service
+  copy: src=lib/systemd/system/neutron-linuxbridge-agent.service dest=/lib/systemd/system/neutron-linuxbridge-agent.service mode=0644
+  when: ansible_distribution_version == "15.04"
+
+- name: install neutron-linuxbridge-agent service for ubuntu 15.04, Reload systemctl
+  command: systemctl daemon-reload
+  when: ansible_distribution_version == "15.04"
+
 - name: start neutron-linuxbridge-agent
   service: name=neutron-linuxbridge-agent state=started
   when: neutron.plugin == 'ml2'
@@ -40,3 +60,4 @@
 
 - include: monitoring.yml tags=monitoring,common
   when: monitoring.enabled|default('True')|bool
+  when: ansible_distribution_version != "15.04" and ansible_architecture != "ppc64le"

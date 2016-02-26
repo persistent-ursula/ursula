@@ -1,0 +1,12 @@
+---
+nova:
+  libvirt_type: kvm
+
+docker:
+  enabled: False
+
+# Set SMT to off on POWER-8.
+# By default, POWER8 systems have SMT8 enabled.
+# Needs to be turned off in order to provision VMs,
+# else KVM start fails with “device or resource busy” message.
+smt: "off"

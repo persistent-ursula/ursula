@@ -1,4 +1,3 @@
 ---
 dependencies:
-  - role: keystone-defaults
   - role: endpoints
