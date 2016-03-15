@@ -26,4 +26,4 @@ dependencies:
     alternatives: "{{ nova.alternatives }}"
     when: openstack_install_method == 'package'
   - role: ceph-common
-    when: ceph.enabled |bool and backend_ceph |bool
+    when: ceph.enabled |bool and nova.backend_ceph |bool
