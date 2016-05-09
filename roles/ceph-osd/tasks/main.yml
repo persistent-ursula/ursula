@@ -53,12 +53,17 @@
   run_once: true
   delegate_to: "{{ groups['ceph_monitors'][0] }}"
 
+- name: create openstack vm pool if nova's backend is ceph
+  ceph_pool:
+    pool_name: "{{ ceph.vm_pool_name }}"
+  register: pool_output
+  run_once: true
+  delegate_to: "{{ groups['ceph_monitors'][0] }}"
+  when: nova.backend_ceph|bool
+
 - name: create openstack pool
   ceph_pool:
-    pool_name: "{{ item }}"
-  with_items:
-    - "{{ ceph.pool_name }}"
-    - "{{ ceph.vm_pool_name }}"
+    pool_name: "{{ ceph.pool_name }}"
   register: pool_output
   run_once: true
   delegate_to: "{{ groups['ceph_monitors'][0] }}"

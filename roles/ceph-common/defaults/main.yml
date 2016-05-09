@@ -11,6 +11,7 @@ ceph:
 
   openstack_keys:
     - { name: client.glance, value: "mon 'allow r' osd 'allow class-read object_prefix rbd_children, allow rwx pool=default'" }
+    # Ensure the allow pool=<name> matches the 'vm_pool_name' variable as defined below
     - { name: client.cinder, value: "mon 'allow r' osd 'allow class-read object_prefix rbd_children, allow rwx pool=default, allow rwx pool=vms'" }
 
   # Packages
