@@ -1,7 +1,7 @@
 ---
 - name: ceilometer-api check
   sensu_check: name=check-ceilometer-api plugin=check-os-api.rb
-               args="--service ceilometer"
+               args="--service ceilometer --criticality {{ ceilometer.monitoring.sensu_checks.check_ceilometer_api.criticality }}"
   notify: restart sensu-client
 
 - name: ceilometer sla metrics
@@ -15,6 +15,13 @@
     - ceilometer-api
     - ceilometer-collector
     - ceilometer-agent-notification
+  notify: restart sensu-client
+
+- name: remove old checks
+  sensu_process_check:
+    service: "{{ item }}"
+    state: absent
+  with_items:
     - ceilometer-agent-central
     - ceilometer-alarm-evaluator
     - ceilometer-alarm-notifier

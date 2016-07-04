@@ -28,9 +28,9 @@ def main():
     module = AnsibleModule(
         argument_spec=dict(
             name=dict(default=None, required=True),
-            use_sudo=dict(required=False, choices=BOOLEANS, default=False),
-            handle=dict(required=False, choices=BOOLEANS, default=True),
-            auto_resolve=dict(required=False, choices=BOOLEANS, default=True),
+            use_sudo=dict(required=False, type='bool', default=False),
+            handle=dict(required=False, type='bool', default=True),
+            auto_resolve=dict(required=False, type='bool', default=True),
             interval=dict(required=False, default=30),
             occurrences=dict(required=False, default=2),
             plugin=dict(required=True),
@@ -39,6 +39,8 @@ def main():
             env_vars=dict(required=False,default=''),
             command=dict(required=False,default=''),
             handler=dict(required=False,default='default'),
+            tags=dict(required=False, type='list'),
+            dependencies=dict(required=False, type='list'),
             plugin_dir=dict(default='/etc/sensu/plugins', required=False),
             check_dir=dict(default='/etc/sensu/conf.d/checks', required=False),
             state=dict(default='present', required=False, choices=['present','absent'])
@@ -69,7 +71,9 @@ def main():
                         'interval': int(module.params['interval']),
                         'occurrences': int(module.params['occurrences']),
                         'auto_resolve': module.params['auto_resolve'],
-                        'handle': module.params['handle']
+                        'handle': module.params['handle'],
+                        'tags': module.params['tags'],
+                        'dependencies': module.params['dependencies']
                     }
                 }
             })
@@ -104,5 +108,6 @@ def main():
             module.fail_json(msg="removing the check failed: %s %s" % (e,formatted_lines))
 
 # this is magic, see lib/ansible/module_common.py
-#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+from ansible.module_utils.basic import *
+
 main()

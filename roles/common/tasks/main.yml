@@ -14,6 +14,9 @@
 - name: update apt index
   apt: update_cache=yes cache_valid_time=3600
   tags: ['prereboot']
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - include: system-tools.yml
 
@@ -36,6 +39,9 @@
     - libssl-dev
     - libxml2-dev
     - libxslt1-dev
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - include: python.yml
   tags: pip, python
@@ -51,7 +57,8 @@
 - name: state path base directory
   file: dest={{ state_path_base }} state=directory
 
-- include: ssl.yml tags=ssl
+- include: ssl.yml
+  tags: ssl
 
 - include: ssh.yml
 
@@ -68,7 +75,8 @@
   tags: ntp
 
 # Include serial console before kernel-tuning to build serial_console_cmdline
-- include: serial-console.yml tty={{ common.serial_console }}
+- include: serial-console.yml tty={{ common.serial_console.name }}
+  when: common.serial_console.enabled | bool
   tags: ['prereboot']
 
 - include: ipmi.yml
@@ -81,19 +89,22 @@
 - include: disable-swap.yml
 
 - include: hwraid.yml
-  when: common.hwraid.enabled
+  when: common.hwraid.enabled and ansible_architecture != "ppc64le"
   tags: hwraid
 
 - name: remove unwanted packages
   apt:
     name: "{{ item }}"
     state: absent
-  with_items: common.packages_to_remove
+  with_items: "{{ common.packages_to_remove }}"
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: fetch Ursula revision
   local_action: command git describe --tags
   run_once: true
-  sudo: no
+  become: no
   register: ursula_git_describe
 
 - name: store Ursula revision
@@ -120,3 +131,8 @@
     - logrotate
     - logging
   when: logging.enabled|default('True')|bool
+
+- include: serverspec.yml
+  tags:
+    - serverspec
+  when: serverspec.enabled|default('False')|bool

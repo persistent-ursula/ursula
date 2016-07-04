@@ -8,13 +8,22 @@
     - ucarp
     - radvd
     - resolvconf
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: install packages for l3ha
-  apt: pkg={{ item }}
-  with_items:
-    - keepalived
-    - conntrackd
+  apt: pkg=keepalived
   when: neutron.l3ha.enabled|bool
+  register: result
+  until: result|succeeded
+  retries: 5
+
+- name: remove conntrackd
+  apt: name=conntrackd purge=yes state=absent
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - include: dnsmasq.yml
 
@@ -58,9 +67,9 @@
     src: etc/neutron/neutron_lbaas.conf
     dest: /etc/neutron/neutron_lbaas.conf
     mode: 0644
-  when: (neutron.lbaas.enable == "smart" and
+  when: (neutron.lbaas.enabled == "smart" and
          groups['controller'][0] not in groups['compute']) or
-         neutron.lbaas.enable|bool
+         neutron.lbaas.enabled|bool
   notify:
     - restart neutron lbaas agent
 
@@ -69,9 +78,9 @@
     src: etc/neutron/services/loadbalancer/haproxy/lbaas_agent.ini
     dest: /etc/neutron/services/loadbalancer/haproxy
     mode: 0644
-  when: (neutron.lbaas.enable == "smart" and
+  when: (neutron.lbaas.enabled == "smart" and
          groups['controller'][0] not in groups['compute']) or
-         neutron.lbaas.enable|bool
+         neutron.lbaas.enabled|bool
   notify:
     - restart neutron lbaas agent
 
@@ -86,15 +95,32 @@
     config_dirs: /etc/neutron
     config_files: "{{ item.value.config_files|join(',') }}"
     envs: "{{ neutron.service.envs }}"
-  when: (neutron.lbaas.enable == "smart" and
+  when: (neutron.lbaas.enabled == "smart" and
          groups['controller'][0] not in groups['compute']) or
-         neutron.lbaas.enable|bool
+         neutron.lbaas.enabled|bool
   with_dict:
     neutron-lbaasv2-agent:
       config_files:
         - /etc/neutron/neutron.conf
         - /etc/neutron/services/loadbalancer/haproxy/lbaas_agent.ini
         - /etc/neutron/neutron_lbaas.conf
+
+- name: kill namespaced neutron processes on upgrade
+  command: pkill -f {{ item }}
+  failed_when: False
+  when: code_has_changed | default('False') | bool and
+        upgrade | default('False') | bool
+  with_items:
+    - neutron-keepalived-state-change
+    - neutron-ns-metadata-proxy
+
+- name: trigger restart on upgrades
+  debug:
+    msg: "Triggering service restart for upgrade"
+  changed_when: True
+  notify: restart neutron services
+  when: code_has_changed | default('False') | bool and
+        upgrade | default('False') | bool
 
 - meta: flush_handlers
 
@@ -107,11 +133,14 @@
 
 - name: start neutron lbaas agent
   service: name=neutron-lbaasv2-agent state=started
-  when: (neutron.lbaas.enable == "smart" and
+  when: (neutron.lbaas.enabled == "smart" and
          groups['controller'][0] not in groups['compute']) or
-         neutron.lbaas.enable|bool
+         neutron.lbaas.enabled|bool
 
 - include: ipchanged.yml
 
-- include: monitoring.yml tags=monitoring,common
+- include: monitoring.yml
+  tags:
+    - monitoring
+    - common
   when: monitoring.enabled|default('True')|bool

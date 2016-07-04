@@ -3,14 +3,20 @@
   apt: pkg={{ item }} state=present
   with_items:
     - libsasl2-dev
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: memcached gem for sensu check
   gem: name=memcached user_install=no include_dependencies=yes
        executable=/opt/sensu/embedded/bin/gem
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: memcached stats check
   sensu_check: name=memcached-stats plugin=check-memcached-stats.rb
-               args='--host {{ primary_ip }}'
+               args='--host {{ primary_ip }} --criticality {{ memcached.monitoring.sensu_checks.memcached_stats.criticality }}'
   notify: restart sensu-client
 
 - name: memcached graphite check

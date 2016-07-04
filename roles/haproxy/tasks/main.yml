@@ -4,7 +4,12 @@
   notify: reload haproxy
 
 - name: install haproxy
-  apt: pkg=haproxy
+  apt:
+    pkg: haproxy
+  notify: restart rsyslog 
+  register: result
+  until: result|succeeded
+  retries: 5
 
 # WORKAROUND: `service haproxy stop` fails due to incorrect `start-stop-daemon --pid`
 - name: fix haproxy init script
@@ -27,5 +32,8 @@
 - name: start and enable haproxy
   service: name=haproxy state=started enabled=yes
 
-- include: monitoring.yml tags=monitoring,common
+- include: monitoring.yml
+  tags:
+    - monitoring
+    - common
   when: monitoring.enabled|default('True')|bool

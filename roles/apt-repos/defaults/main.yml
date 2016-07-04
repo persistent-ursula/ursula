@@ -1,4 +1,5 @@
 ---
+repos: []
 apt_repos:
   # All key_urls should be HTTPS to ensure we are retrieving the key we are expecting too
   docker:
@@ -29,7 +30,7 @@ apt_repos:
     key_url: 'https://www.percona.com/redir/downloads/RPM-GPG-KEY-percona'
   rabbitmq:
     repo: 'http://www.rabbitmq.com/debian/'
-    key_url: 'https://www.rabbitmq.com/rabbitmq-signing-key-public.asc'
+    key_url: 'https://www.rabbitmq.com/rabbitmq-release-signing-key.asc'
   cloud_archive:
     repo: 'http://ubuntu-cloud.archive.canonical.com/ubuntu'
   erlang:
@@ -41,3 +42,6 @@ apt_repos:
   mongodb:
     repo: 'http://repo.mongodb.org/apt/ubuntu'
     key_url: 'https://docs.mongodb.org/10gen-gpg-key.asc'
+  logstash_forwarder:
+    repo: ''
+    key_url: ''

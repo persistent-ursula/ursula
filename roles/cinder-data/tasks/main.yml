@@ -8,6 +8,9 @@
     - nbd-client
     - open-iscsi
     - qemu-utils
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: iscsi target framework conf dir
   file: dest=/etc/tgt/conf.d state=directory
@@ -47,9 +50,6 @@
                    cmd=/usr/local/bin/cinder-volume
                    config_dirs=/etc/cinder
 
-- name: start cinder-volume
-  service: name=cinder-volume state=started
-
 - name: install cinder backup service
   upstart_service: name=cinder-backup
                    user=cinder
@@ -57,9 +57,37 @@
                    config_dirs=/etc/cinder
   when: swift.enabled|default("false")|bool
 
-- name: start cinder backup
-  service: name=cinder-backup state=started
-  when: swift.enabled|default("false")|bool
+- name: trigger restart on upgrades
+  debug:
+    msg: "Triggering service restart for upgrade"
+  changed_when: True
+  notify:
+    - restart cinder services
+    - restart cinder backup service
+  when: code_has_changed | default('False') | bool and
+        upgrade | default('False') | bool
 
-- include: monitoring.yml tags=monitoring,common
+- meta: flush_handlers
+
+- name: start cinder-volume
+  service:
+    name: cinder-volume
+    state: started
+  delegate_to: "{{ item }}"
+  run_once: True
+  with_items: "{{ play_hosts }}"
+
+- name: start cinder backup
+  service:
+    name: cinder-backup
+    state: started
+  delegate_to: "{{ item }}"
+  run_once: True
+  when: swift.enabled|default("false")|bool
+  with_items: "{{ play_hosts }}"
+
+- include: monitoring.yml
   when: monitoring.enabled|default('True')|bool
+  tags:
+    - monitoring
+    - common

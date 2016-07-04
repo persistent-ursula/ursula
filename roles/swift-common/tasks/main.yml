@@ -38,15 +38,21 @@
     - pip install swifttool
   when: swift.swifttool_method == 'git'
 
-- name: fetch swifttool tarball
-  get_url: url={{ swift.swifttool_url }} dest=/opt/stack/swifttool/swifttool-{{ swift.swifttool_version }}.tar.gz
-  when: swift.swifttool_method == 'file'
-
-- name: unzip swifttool tarball
-  unarchive: src=/opt/stack/swifttool/swifttool-{{ swift.swifttool_version }}.tar.gz dest=/opt/stack copy=no
+- name: install swifttool pip
+  pip:
+    name: swifttool
+    version: "{{ swift.swifttool_version }}"
+    extra_args: "-i {{ swift.swifttool_pypi_mirror | default(omit) }}"
+    virtualenv: "{{ swift.venv_dir }}"
+  register: result
+  until: result|success
+  retries: 3
+  delay: 10
   notify:
-    - pip install swifttool
-  when: swift.swifttool_method == 'file'
+    - update ca-certs
+    - pip clean swifttool outside venv
+    - setup swifttool alternatives
+  when: swift.swifttool_method == 'pip'
 
 - name: create swift configuration diectory
   file: dest=/etc/swift state=directory owner=swiftops
@@ -65,6 +71,9 @@
 
 - name: install rsync
   apt: pkg=rsync
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - template: src=etc/rsyncd.conf dest=/etc/rsyncd.conf owner=root
             group=root mode=0644
@@ -78,7 +87,10 @@
   template: src=etc/swift/dispersion.conf dest=/etc/swift/dispersion.conf
             owner=swift group=swift mode=0640
 
-- include: monitoring.yml tags=monitoring,common
+- include: monitoring.yml
+  tags:
+    - monitoring
+    - common
   when: monitoring.enabled|default('True')|bool
 
 - include: logging.yml
@@ -91,9 +103,14 @@
   template: src=etc/update-motd.d/99-swift-motd dest=/etc/update-motd.d/99-swift-motd mode=0755
 
 - name: system tuning recommendations for swift per deployment guide
-  sysctl: name="{{ item.key }}" value="{{ item.value }}"
-  with_dict: swift.tuning
+  sysctl: name={{ item.key }} value={{ item.value }}
+  with_dict: "{{ swift.tuning }}"
 
 - name: disable swift directory parsing by updatedb
   command: updatedb -e /srv/node
+
+- include: serverspec.yml
+  tags:
+    - serverspec
+  when: serverspec.enabled|default('False')|bool
 

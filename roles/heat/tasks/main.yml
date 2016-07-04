@@ -36,6 +36,7 @@
     - heat.conf
     - policy.json
     - api-paste.ini
+    - heat_api_audit_map.conf
   notify:
     - restart heat services
 
@@ -50,8 +51,54 @@
     - heat_stack_user
   run_once: true
 
-- name: create heat stack admin
-  shell: . /root/stackrc; heat-keystone-setup-domain --stack-user-domain-name heat --stack-domain-admin heat_domain_admin --stack-domain-admin-password "{{ secrets.stack_domain_admin_password }}"
+- name: create heat domain
+  environment:
+    OS_IDENTITY_API_VERSION: 3
+    OS_DOMAIN_ID: default
+  os_keystone_domain:
+    name: heat
+    auth:
+      auth_url: "{{ endpoints.keystone.url.internal }}/v3"
+      project_name: admin
+      username: admin
+      password: "{{ secrets.admin_password }}"
+  run_once: true
+  register: heat_domain
+
+- name: remove heat domain user from default domain
+  environment:
+    OS_IDENTITY_API_VERSION: 3
+    OS_DOMAIN_ID: default
+  shell: . /root/stackrc; openstack --os-auth-url "{{ endpoints.keystone.url.internal }}/v3" user delete --domain default heat_domain_admin
+  register: remove_heat_admin
+  failed_when: remove_heat_admin|failed and
+               "No user with a name or ID" not in remove_heat_admin.stderr|default('')
+  run_once: true
+
+- name: create heat domain admin user
+  environment:
+    OS_IDENTITY_API_VERSION: 3
+    OS_DOMAIN_ID: default
+  os_user:
+    name: heat_domain_admin
+    password: "{{ secrets.stack_domain_admin_password }}"
+    domain: "{{ heat_domain.domain.id }}"
+    auth:
+      auth_url: "{{ endpoints.keystone.url.internal }}/v3"
+      project_name: admin
+      username: admin
+      password: "{{ secrets.admin_password }}"
+  register: heat_admin_user
+  failed_when: heat_admin_user|failed and
+               "409" not in heat_admin_user.msg|default('')
+  run_once: true
+
+- name: add admin role to the heat domain admin user
+  environment:
+    OS_IDENTITY_API_VERSION: 3
+    OS_DOMAIN_ID: default
+  shell: . /root/stackrc; openstack --os-auth-url "{{ endpoints.keystone.url.internal }}/v3" role add --domain "{{ heat_domain.domain.id }}" --user "{{ heat_admin_user.user.id }}" admin
+  when: heat.enabled|bool and heat_admin_user|changed
   run_once: true
 
 - name: stop heat services before db sync
@@ -73,6 +120,14 @@
   # we want this to always be changed so that it can notify the service restart
   tags: db-migrate
 
+- name: trigger restart on upgrades
+  debug:
+    msg: "Triggering service restart for upgrade"
+  changed_when: True
+  notify: restart heat services
+  when: code_has_changed | default('False') | bool and
+        upgrade | default('False') | bool
+
 - meta: flush_handlers
 
 - name: start heat services
@@ -82,7 +137,10 @@
     - heat-api-cfn
     - heat-engine
 
-- include: monitoring.yml tags=monitoring,common
+- include: monitoring.yml
+  tags:
+    - monitoring
+    - common
   when: monitoring.enabled|default('True')|bool
 
 - include: logging.yml

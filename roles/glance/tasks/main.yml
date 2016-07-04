@@ -86,6 +86,14 @@
 - include: ceph_integration.yml
   when: ceph.enabled|bool
 
+- name: trigger restart on upgrades
+  debug:
+    msg: "Triggering service restart for upgrade"
+  changed_when: True
+  notify: restart glance services
+  when: code_has_changed | default('False') | bool and
+        upgrade | default('False') | bool
+
 - meta: flush_handlers
 
 - name: start glance services
@@ -97,7 +105,10 @@
 - include: image-sync.yml
   when: glance.sync.enabled
 
-- include: monitoring.yml tags=monitoring,common
+- include: monitoring.yml
+  tags:
+    - monitoring
+    - common
   when: monitoring.enabled|default('True')|bool
 
 - include: logging.yml
@@ -105,3 +116,8 @@
     - logrotate
     - logging
   when: logging.enabled|default('True')|bool
+
+- include: serverspec.yml
+  tags: 
+    - serverspec
+  when: serverspec.enabled|default('False')|bool

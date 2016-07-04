@@ -1,7 +1,8 @@
 ---
 - name: gather nova pubkeys
-  user: name=nova
-        generate_ssh_key=yes
+  user:
+    name: nova
+    generate_ssh_key: yes
   register: nova_user
 
 - name: nova authorized_keys
@@ -12,12 +13,37 @@
     group: nova
     mode: 0600
 
+- name: deal with known_hosts symlink
+  stat:
+    path: /root/.ssh/known_hosts
+  register: root_known_hosts
+
+- name: delete existing known_hosts symlink
+  file:
+    path: /root/.ssh/known_hosts
+    state: absent
+  when: root_known_hosts.stat.exists and root_known_hosts.stat.islnk
+
 - name: nova known_hosts
   template:
     src: var/lib/nova/ssh/known_hosts
     dest: "{{ nova.state_path }}/.ssh/known_hosts"
     owner: nova
     group: nova
+    mode: 0600
+
+- name: root ssh dir
+  file:
+    path: /root/.ssh
+    mode: 0700
+    state: directory
+
+- name: root known_hosts (for libvirt)
+  template:
+    src: var/lib/nova/ssh/known_hosts
+    dest: "/root/.ssh/known_hosts"
+    owner: root
+    group: root
     mode: 0600
 
 - name: nova bin directory
@@ -37,4 +63,6 @@
     mode: 0755
 
 - name: verify ssh among compute nodes
-  command: sudo -u nova -H /bin/sh -c {{ nova.state_path }}/bin/verify-ssh
+  command: "{{ nova.state_path }}/bin/verify-ssh"
+  become: yes
+  become_user: nova

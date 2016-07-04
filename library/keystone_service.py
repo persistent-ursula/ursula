@@ -138,8 +138,7 @@ def ensure_service_present(keystone, name, service_type, description,
     else:
         # See if it matches exactly
         if service.name == name and \
-           service.type == service_type and \
-           service.description == description:
+           service.type == service_type:
 
             # Same, no changes needed
             return (False, service.id)
@@ -172,14 +171,8 @@ def ensure_endpoint_present(keystone, name, public_url, internal_url,
         # Endpoint doesn't exist yet, we'll need to create one
         pass
     else:
-        # See if it matches
-        if endpoint.publicurl == public_url and \
-           endpoint.adminurl == admin_url and \
-           endpoint.internalurl == internal_url and \
-           endpoint.region == region:
-
-            # Same, no changes needed
-            return (False, endpoint.id)
+        # endpoints can't be updated with this module (v2 API)
+        return (False, endpoint.id)
 
     # At this point, we know we will need to make a change
     if check_mode:
@@ -192,10 +185,6 @@ def ensure_endpoint_present(keystone, name, public_url, internal_url,
                                              adminurl=admin_url,
                                              internalurl=internal_url)
         return (True, endpoint.id)
-    else:
-        msg = "keystone v2 API doesn't support updating endpoints"
-        raise ValueError(msg)
-
 
 def ensure_service_absent(keystone, name, check_mode):
     """ Ensure the service is absent"""
@@ -253,7 +242,7 @@ def main():
                           default="http://127.0.0.1:35358/v2.0",
                           aliases=['auth_url']),
             token=dict(required=False),
-            insecure=dict(required=False, default=False, choices=BOOLEANS),
+            insecure=dict(required=False, default=False, type='bool'),
 
             login_user=dict(required=False),
             login_password=dict(required=False),
@@ -304,6 +293,7 @@ def main():
 
 
 # this is magic, see lib/ansible/module_common.py
-#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+from ansible.module_utils.basic import *
+
 if __name__ == '__main__':
     main()

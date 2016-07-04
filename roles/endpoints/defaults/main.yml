@@ -17,12 +17,12 @@ endpoints:
       admin: https://{{ fqdn }}:8774
       internal: https://{{ fqdn }}:8774
       public: https://{{ fqdn }}:8774
-      path: v2/%(tenant_id)s
+      path: v2/%(project_id)s
     port:
       backend_api: 9774
       haproxy_api: 8774
     haproxy:
-      health_check: 'httpchk /'
+      health_check: 'httpchk GET /healthcheck'
       balance: 'roundrobin'
       prefer_primary_backend: False
   glance:
@@ -37,7 +37,7 @@ endpoints:
       backend_api: 9393
       haproxy_api: 9292
     haproxy:
-      health_check: 'httpchk GET /versions'
+      health_check: 'httpchk GET /healthcheck'
       balance: 'source'
       prefer_primary_backend: True
   cinder:
@@ -49,12 +49,12 @@ endpoints:
       admin: https://{{ fqdn }}:8776
       internal: https://{{ fqdn }}:8776
       public: https://{{ fqdn }}:8776
-      path: v1/%(tenant_id)s
+      path: v1/%(project_id)s
     port:
       backend_api: 8778
       haproxy_api: 8776
     haproxy:
-      health_check: 'httpchk /'
+      health_check: 'httpchk GET /healthcheck'
       balance: 'source'
       prefer_primary_backend: False
   cinderv2:
@@ -66,7 +66,7 @@ endpoints:
       admin: https://{{ fqdn }}:8776
       internal: https://{{ fqdn }}:8776
       public: https://{{ fqdn }}:8776
-      path: v2/%(tenant_id)s
+      path: v2/%(project_id)s
   keystone:
     name: keystone
     type: identity
@@ -83,12 +83,13 @@ endpoints:
       health_check: 'httpchk /'
       balance: 'roundrobin'
       prefer_primary_backend: False
+      oidc_cookie: 'mod_auth_openidc_session prefix'
   keystone_admin:
     port:
       backend_api: 35358
       haproxy_api: 35357
     haproxy:
-      health_check: 'httpchk /'
+      health_check: 'httpchk GET /healthcheck'
       balance: 'roundrobin'
       prefer_primary_backend: False
   keystone_legacy:
@@ -96,7 +97,7 @@ endpoints:
       backend_api: 5002
       haproxy_api: 5001
     haproxy:
-      health_check: 'httpchk /'
+      health_check: 'httpchk GET /healthcheck'
       balance: 'roundrobin'
       prefer_primary_backend: False
   keystonev3:
@@ -151,12 +152,12 @@ endpoints:
       admin: https://{{ fqdn }}:8004
       internal: https://{{ fqdn }}:8004
       public: https://{{ fqdn }}:8004
-      path: v1/%(tenant_id)s
+      path: v1/%(project_id)s
     port:
       backend_api: 8005
       haproxy_api: 8004
     haproxy:
-      health_check: 'httpchk /'
+      health_check: 'httpchk GET /healthcheck'
       balance: 'source'
       prefer_primary_backend: False
   heat_cfn:
@@ -172,7 +173,7 @@ endpoints:
       backend_api: 8001
       haproxy_api: 8000
     haproxy:
-      health_check: 'httpchk /'
+      health_check: 'httpchk GET /healthcheck'
       balance: 'source'
       prefer_primary_backend: False
   ceilometer:
@@ -187,7 +188,7 @@ endpoints:
       backend_api: 9777
       haproxy_api: 8777
     haproxy:
-      health_check: 'tcp-check /'
+      health_check: 'httpchk GET /healthcheck'
       balance: 'source'
       prefer_primary_backend: False
   ironic:
@@ -215,12 +216,28 @@ endpoints:
       admin: https://{{ swift_fqdn }}:8090
       internal: https://{{ swift_fqdn }}:8090
       public: https://{{ swift_fqdn }}:8090
-      path: v1/%(tenant_id)s
+      path: v1/%(project_id)s
     port:
       haproxy_api: 8090
       cinder_backup: 8091
       proxy_api: 8080
     haproxy:
       health_check: 'httpchk HEAD /healthcheck HTTP/1.0'
+      balance: 'roundrobin'
+      prefer_primary_backend: False
+      maxconn: 4096
+  aodh:
+    name: aodh
+    type: alarming
+    description: 'Alarming Service'
+    url:
+      admin: https://{{ fqdn }}:8042
+      internal: https://{{ fqdn }}:8042
+      public: https://{{ fqdn }}:8042
+    port:
+      backend_api: 8043
+      haproxy_api: 8042
+    haproxy:
+      health_check: 'httpchk GET /healthcheck'
       balance: 'source'
       prefer_primary_backend: False

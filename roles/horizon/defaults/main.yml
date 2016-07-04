@@ -3,19 +3,23 @@ horizon:
   keystone_api_version: 3
   session_timeout: 5400
   customize: false
+  horizon_lib_dir: "/opt/openstack/current/horizon"
+  nextgen_instance_panel: true
+  legacy_instance_panel: false
+  session_engine: django.contrib.sessions.backends.cache
   source:
-    rev: 'kilo-bbg'
+    rev: 'stable/mitaka'
+    constrain: True
+    upper_constraints: 'https://raw.githubusercontent.com/openstack/requirements/stable/mitaka/upper-constraints.txt'
     python_dependencies:
-      - { name: mysql-python }
-      - { name: functools32 }
-      - { name: requests, version: '2.7.0' }
-      - { name: python-memcached, version: '1.48' }
-      - { name: stevedore, version: '1.5.0' }
+      - { name: PyMySQL }
+      - { name: python-memcached }
+      - { name: neutron-lbaas-dashboard }
       - { name: "git+https://github.com/blueboxgroup/horizon-customization#egg=horizon-customization"}
+      - { name: django_openstack_auth, version: '2.2.1.dev1' }
     system_dependencies:
       - apache2
       - libapache2-mod-wsgi
-      - libmysqlclient-dev
   logs:
     - paths:
         - /var/log/apache2/access.log
@@ -35,3 +39,11 @@ horizon:
   logging:
     debug: False
     verbose: True
+  monitoring:
+    sensu_checks:
+      check_http:
+        criticality: 'critical'
+  websso:
+     choices:
+       credentials: 'Keystone Authentication'
+       oidc: 'OpenID Connect Authentication'

@@ -1,5 +1,6 @@
 ---
 stack_env: example
+ursula_env_path: "{{ lookup('env','URSULA_ENV') }}"
 
 country_code: US
 
@@ -22,7 +23,6 @@ secrets:
   monitor_password: asdf
   telemetry_secret: asdf
   cloud_admin_password: asdf
-  project_admin_password: asdf
 
 fqdn: openstack.example.com
 swift_fqdn: "{{ fqdn }}"
@@ -71,19 +71,10 @@ xtradb:
   sst_auth_user: sst_admin
   sst_auth_password: asdf
 
-# TODO(retr0h): Determine the best way to connect to a sensu server.
-# Currently, unable to test monitoring in a VM environment, without
-# changing the following to a valid sensu server.
 monitoring:
   enabled: true
-  sensu_package_version: 0.12.5-1
-  rabbit:
-    host: "{{ undercloud_floating_ip }}"
-    port: 5672
-    user: openstack
-    pass: asdf
   keepalive:
-    handler: email
+    handler: default
   scan_for_log_errors: true
   openstack:
     user:
@@ -100,7 +91,7 @@ openstack:
   easy_install_mirror: https://pypi-mirror.openstack.blueboxgrid.com/root/pypi/+simple
   pip_trusted: pypi-mirror.openstack.blueboxgrid.com
   gem_sources:
-    - https://gem-mirror.openstack.blueboxgrid.com
+    - https://rubygems.org
   git_mirror:  https://github.com/openstack
   git_update: yes
   ubuntu_mirror: https://apt-mirror.openstack.blueboxgrid.com/archive.ubuntu.com/ubuntu
@@ -132,7 +123,7 @@ apt_repos:
     key_url: https://apt-mirror.openstack.blueboxgrid.com/keys/percona.key
   rabbitmq:
     repo: https://apt-mirror.openstack.blueboxgrid.com/rabbitmq/debian
-    key_url: https://apt-mirror.openstack.blueboxgrid.com/keys/rabbitmq.key
+    key_url: https://www.rabbitmq.com/rabbitmq-release-signing-key.asc
   cloud_archive:
     repo: https://apt-mirror.openstack.blueboxgrid.com/cloud_archive/ubuntu
   erlang:
@@ -165,6 +156,7 @@ ceph:
   #  - sdb
   #  - sdc
   #  - sdd
+  #bcache_ssd_device: sdg
 
 cinder:
   enabled: True
@@ -197,7 +189,7 @@ neutron:
   tunnel_types:
     - vxlan
   lbaas:
-    enable: False
+    enabled: False
   logging:
     debug: True
     verbose: True
@@ -317,16 +309,16 @@ keystone:
     - name: cloud_admin
       password: "{{ secrets.cloud_admin_password }}"
       tenant: demo
-    - name: project_admin
-      password: "{{ secrets.project_admin_password }}"
-      tenant: demo
+    - name: aodh
+      password: "{{ secrets.service_password }}"
+      tenant: service
   user_roles:
     - user: admin
       tenant: admin
       role: admin
     - user: admin
-      tenant: demo
-      role: cloud_admin
+      tenant: admin
+      role: heat_stack_owner
     - user: admin
       tenant: service
       role: admin
@@ -369,9 +361,12 @@ keystone:
     - user: cloud_admin
       tenant: demo
       role: cloud_admin
-    - user: project_admin
+    - user: cloud_admin
       tenant: demo
-      role: project_admin
+      role: heat_stack_owner
+    - user: aodh
+      tenant: service
+      role: admin
   services:
     - name: keystone
       type: identity
@@ -451,6 +446,15 @@ keystone:
       public_url: https://{{ endpoints.main }}:9511
       internal_url: https://{{ endpoints.main }}:9511
       admin_url: https://{{ endpoints.main }}:9511
+    - name: aodh
+      type: alarming
+      description: 'aodh alarming service'
+      public_url: "{{ endpoints.aodh.url.public }}"
+      internal_url: "{{ endpoints.aodh.url.internal }}"
+      admin_url: "{{ endpoints.aodh.url.admin }}"
+  federation:
+    enabled: False
+
 ssl:
   crt: |
     -----BEGIN CERTIFICATE-----
@@ -559,8 +563,8 @@ common:
     mcelog: False
   ursula_monitoring:
     method: tar # git|tar
-    tar_url: https://file-mirror.openstack.blueboxgrid.com/ursula-monitoring/master.tar.gz
-    tar_version: master
+    tar_url: https://file-mirror.openstack.blueboxgrid.com/ursula-monitoring/2.2.3.tar.gz
+    tar_version: 2.2.3
   ntpd:
     servers: []
     #  - servertime.service.softlayer.com
@@ -572,6 +576,12 @@ heat:
     verbose: True
 
 ceilometer:
+  enabled: False
+  logging:
+    debug: True
+    verbose: True
+
+aodh:
   enabled: False
   logging:
     debug: True
@@ -593,9 +603,7 @@ haproxy:
   enabled: True
 
 logging:
-  enabled: True
-  download:
-    url: https://file-mirror.openstack.blueboxgrid.com/logstash/logstash-forwarder_0.3.1_amd64.deb
+  enabled: False
 
 keystonev3:
   enabled: True
@@ -603,9 +611,9 @@ keystonev3:
 cinderv2:
   enabled: True
 
-heat-cfn:
-  enabled: True
-
 magnum:
-  enabled: True
+  enabled: False
   debug: True
+
+serverspec:
+  enabled: False

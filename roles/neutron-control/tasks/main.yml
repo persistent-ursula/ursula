@@ -30,14 +30,22 @@
   command: neutron-db-manage --service lbaas --config-file /etc/neutron/neutron.conf \
            --config-file /etc/neutron/plugins/ml2/ml2_plugin.ini upgrade head
   when: (database_create.changed or force_sync|default('false')|bool) and
-        ((neutron.lbaas.enable == "smart" and
+        ((neutron.lbaas.enabled == "smart" and
          groups['controller'][0] not in groups['compute']) or
-         neutron.lbaas.enable|bool)
+         neutron.lbaas.enabled|bool)
   run_once: true
   changed_when: true
   notify: restart neutron services
   # we want this to always be changed so that it can notify the service restart
   tags: db-migrate
+
+- name: trigger restart on upgrades
+  debug:
+    msg: "Triggering service restart for upgrade"
+  changed_when: True
+  notify: restart neutron services
+  when: code_has_changed | default('False') | bool and
+        upgrade | default('False') | bool
 
 - meta: flush_handlers
 
@@ -48,5 +56,8 @@
   ufw: rule=allow to_port={{ endpoints.neutron.port.haproxy_api }} proto=tcp
   tags: ufw
 
-- include: monitoring.yml tags=monitoring,common
+- include: monitoring.yml
+  tags:
+    - monitoring
+    - common
   when: monitoring.enabled|default('True')|bool

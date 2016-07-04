@@ -4,9 +4,12 @@
   with_items:
     - mongodb-org-server={{ mongodb.version }}
     - mongodb-org-shell={{ mongodb.version }}
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: install mongodb config files
-  template: src=etc/mongodb/mongod.conf dest=/etc/mongod.conf owner=mongodb mode=0640
+  template: src=etc/mongodb/mongod.conf dest=/etc/mongod.conf owner=root group=mongodb mode=0640
   notify: restart mongodb service
 
 - meta: flush_handlers
@@ -25,3 +28,8 @@
     - logrotate
     - logging
   when: logging.enabled|default('True')|bool
+
+- include: serverspec.yml
+  tags:
+    - serverspec
+  when: serverspec.enabled|default('False')|bool

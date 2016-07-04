@@ -13,7 +13,10 @@
 - name: nova packages
   apt:
     pkg="{{ item }}"
-  with_items: nova.install_packages
+  with_items: "{{ nova.install_packages }}"
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: create nova config dir
   file: dest=/etc/nova state=directory
@@ -61,3 +64,8 @@
     - logrotate
     - logging
   when: logging.enabled|default('True')|bool
+
+- include: serverspec.yml
+  tags: 
+    - serverspec
+  when: serverspec.enabled|default('False')|bool

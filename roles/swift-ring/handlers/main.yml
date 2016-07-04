@@ -1,5 +1,6 @@
 ---
-- name: setup swift rings
-  command: sudo -u swiftops /usr/local/bin/swifttool -i /home/swiftops/.ssh/id_rsa
-           bootstrap --config /etc/swift/ring_definition.yml --outdir /etc/swift
-
+- name: setup swift rings - bootstrap
+  command: /usr/local/bin/swifttool -u swiftops -i /home/swiftops/.ssh/id_rsa
+           --config {{ swift_ring.outdir }}/ring_definition.yml --outdir {{ swift_ring.outdir }} bootstrap
+  become: True
+  become_user: swiftops

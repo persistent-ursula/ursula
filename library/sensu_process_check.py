@@ -30,6 +30,8 @@ def main():
             crit_over=dict(default=30, required=False),
             interval=dict(default=30, required=False),
             occurrences=dict(default=2, required=False),
+            tags=dict(required=False, type='list'),
+            dependencies=dict(required=False, type='list'),
             plugin_dir=dict(default='/etc/sensu/plugins', required=False),
             check_dir=dict(default='/etc/sensu/conf.d/checks', required=False),
             state=dict(default='present', required=False, choices=['present','absent'])
@@ -52,7 +54,9 @@ def main():
                         'handlers': [ 'default' ],
                         'interval': int(module.params['interval']),
                         'notification': notification,
-                        'occurrences':  int(module.params['occurrences'])
+                        'occurrences':  int(module.params['occurrences']),
+                        'tags': module.params['tags'],
+                        'dependencies': module.params['dependencies']
                     }
                 }
             })
@@ -76,7 +80,9 @@ def main():
     else:
         try:
             changed = False
-            check_path = '%s/%s.json' % (module.params['check_dir'], module.params['name'])
+            if not module.params['short_service_name']:
+                short_service_name = os.path.basename(module.params['service'])
+            check_path = '%s/%s-service.json' % (module.params['check_dir'], short_service_name)
             if os.path.isfile(check_path):
                 os.remove(check_path)
                 module.exit_json(changed=True, result="changed")
@@ -87,5 +93,6 @@ def main():
             module.fail_json(msg="removing the check failed: %s %s" % (e,formatted_lines))
 
 # this is magic, see lib/ansible/module_common.py
-#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+from ansible.module_utils.basic import *
+
 main()

@@ -28,9 +28,10 @@ def main():
     module = AnsibleModule(
         argument_spec=dict(
             name=dict(default=None, required=True),
-            use_sudo=dict(required=False, choices=BOOLEANS, default=False),
+            use_sudo=dict(required=False, type='bool', default=False),
             plugin=dict(default=None, required=True),
             args=dict(default='', required=False),
+            tags=dict(required=False, type='list'),
             plugin_dir=dict(default='/etc/sensu/plugins', required=False),
             check_dir=dict(default='/etc/sensu/conf.d/checks', required=False),
             prefix=dict(default='', required=False),
@@ -56,7 +57,8 @@ def main():
                         'command': command,
                         'standalone': True,
                         'interval': int(module.params['interval']),
-                        'handlers': [ 'metrics' ]
+                        'handlers': [ 'metrics' ],
+                        'tags': module.params['tags'],
                     }
                 }
             })
@@ -91,5 +93,6 @@ def main():
             module.fail_json(msg="removing the check failed: %s %s" % (e,formatted_lines))
 
 # this is magic, see lib/ansible/module_common.py
-#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+from ansible.module_utils.basic import *
+
 main()

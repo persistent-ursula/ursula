@@ -20,10 +20,6 @@ import yaml
 
 from ansible.constants import DEFAULTS, get_config, load_config_file
 
-import ansible.errors as errors
-import ansible.inventory as inventory
-import ansible.utils as utils
-
 
 def deep_update_dict(d, u):
     for k, v in u.iteritems():
@@ -42,7 +38,7 @@ class VarsModule(object):
         self.inventory_basedir = inventory.basedir()
 
     def _get_defaults(self):
-        p = load_config_file()
+        p, cfg_path = load_config_file()
         defaults_file = get_config(p, DEFAULTS, 'var_defaults_file',
                                    'ANSIBLE_VAR_DEFAULTS_FILE', None)
         if not defaults_file:
@@ -52,12 +48,15 @@ class VarsModule(object):
         defaults_path = os.path.join(ursula_env, defaults_file)
         if os.path.exists(defaults_path):
             with open(defaults_path) as fh:
-                return yaml.load(fh)
+                return yaml.safe_load(fh)
         return None
 
     def run(self, host, vault_password=None):
         default_vars = self._get_defaults()
-        group_vars = host.get_variables()
+        if hasattr(host, 'get_group_vars'):
+            group_vars = host.get_group_vars()
+        else:
+            group_vars = host.get_variables()
         if default_vars:
             return deep_update_dict(default_vars, group_vars)
         return group_vars

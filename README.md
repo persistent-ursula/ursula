@@ -39,6 +39,8 @@ $ source /usr/local/bin/virtualenvwrapper.sh
 $ mkvirtualenv ursula
 ```
 
+Note: If you're using OSX El Capitan, you need to use ```pip install --ignore-installed six virtualenvwrapper``` to get pip to not attempt to uninstall the existing version of six which the system will not allow.
+
 You will want to add `source /usr/local/bin/virtualenvwrapper.sh` to your shell startup file, changing the path to virtualenvwrapper.sh
 depending on where it was installed by pip.
 
@@ -54,7 +56,16 @@ enter the `virtualenv`
 ## Install ursula and dependencies:
 
 Now that your python environment is ready, you can clone ursula and install
-its prerequisites:
+its prerequisites.
+
+You'll need a modern version of pip, so if you're using a version <7,
+run:
+
+```
+$ pip install -U pip
+```
+
+Now you can continue cloning and installing ursula:
 
 ```bash
 $ cd ~/development

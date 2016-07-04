@@ -1,0 +1,77 @@
+---
+- name: set federated domain name
+  ini_file: dest=/etc/keystone/keystone.conf
+            section=federation
+            option=federated_domain_name
+            value=Default
+  notify: restart keystone services
+
+- name: Register keystone sp info on keystone idp
+  keystone_service_provider:
+    auth:
+      auth_url: "http://127.0.0.1:{{ endpoints.keystone_admin.port.backend_api }}/v3"
+      project_name: admin
+      domain_id: Default
+      username: admin
+      password: "{{ secrets.admin_password }}"
+    service_provider_id: "{{ item.id }}"
+    service_provider_url: "{{ item.service_provider_url }}"
+    service_provider_auth_url: "{{ item.service_provider_auth_url }}"
+  with_items: "{{ keystone.federation.idp.k2k.service_providers }}"
+  when: keystone.federation.idp.k2k.enabled|bool
+
+- name: create keystone identity providers
+  keystone_identity_provider: auth_url="http://127.0.0.1:{{ endpoints.keystone_admin.port.backend_api }}/v3"
+                              username="admin"
+                              password="{{ secrets.admin_password }}"
+                              name="{{ item.name }}"
+                              project_name_to_auth="admin"
+                              domain_name_to_auth="Default"
+                              description="{{ item.description|default(omit) }}"
+                              remote_ids="{{ item.remote_ids|default(omit) }}"
+                              enabled="{{ item.enabled|default(omit) }}"
+  with_items: "{{ keystone.federation.sp.identity_providers }}"
+
+- name: create keystone groups
+  keystone_group: auth_url="http://127.0.0.1:{{ endpoints.keystone_admin.port.backend_api }}/v3"
+                  username="admin"
+                  password="{{ secrets.admin_password }}"
+                  name="{{ item.name }}"
+                  description="{{ item.description|default(omit) }}"
+                  project_name_to_auth="admin"
+                  domain_name_to_auth="Default"
+                  domain="{{ item.domain|default(omit) }}"
+  with_items: "{{ keystone.federation.sp.groups }}"
+
+- name: add role to keystone group
+  keystone_role: auth_url="http://127.0.0.1:{{ endpoints.keystone_admin.port.backend_api }}/v3"
+                  username="admin"
+                  password="{{ secrets.admin_password }}"
+                  group="{{ item.group }}"
+                  project_name_to_auth="admin"
+                  domain_name_to_auth="Default"
+                  domain="{{ item.domain|default(omit) }}"
+                  role="{{ item.role }}"
+                  project="{{ item.project }}"
+  with_items: "{{ keystone.federation.sp.role }}"
+
+- name: create keystone federation mappings
+  keystone_federation_mapping: auth_url="http://127.0.0.1:{{ endpoints.keystone_admin.port.backend_api }}/v3"
+                               username="admin"
+                               password="{{ secrets.admin_password }}"
+                               name="{{ item.name }}"
+                               project_name_to_auth="admin"
+                               domain_name_to_auth="Default"
+                               rules="{{ item.rules }}"
+  with_items: "{{ keystone.federation.sp.mappings }}"
+
+- name: create keystone protocols
+  keystone_federation_protocol: auth_url="http://127.0.0.1:{{ endpoints.keystone_admin.port.backend_api }}/v3"
+                                username="admin"
+                                password="{{ secrets.admin_password }}"
+                                name="{{ item.name }}"
+                                project_name_to_auth="admin"
+                                domain_name_to_auth="Default"
+                                identity_provider="{{ item.identity_provider }}"
+                                mapping="{{ item.mapping }}"
+  with_items: "{{ keystone.federation.sp.protocols }}"

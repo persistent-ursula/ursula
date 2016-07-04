@@ -8,10 +8,14 @@ swift:
     - disk: sdb
   allow_versions: True
   source:
-    rev: 'stable/kilo'
+    rev: 'stable/mitaka'
+    constrain: True
+    upper_constraints: 'https://raw.githubusercontent.com/openstack/requirements/stable/mitaka/upper-constraints.txt'
     python_dependencies:
       - { name: keystonemiddleware }
       - { name: python-swiftclient }
+    system_dependencies:
+      - liberasurecode-dev
   alternatives:
     - swift-account-audit
     - swift-account-auditor
@@ -52,7 +56,7 @@ swift:
         - /var/log/swift/account.log
       fields:
         type: openstack
-        tags: swift,swift-acount
+        tags: swift,swift-account
     - paths:
         - /var/log/swift/container.log
       fields:
@@ -80,6 +84,26 @@ swift:
       net.ipv4.tcp_tw_reuse: 1
   # NOTE: Make sure you update the swifttool version in both places
   swifttool_dir: 'swifttool'
-  swifttool_url: https://github.com/blueboxgroup/swifttool/archive/v0.0.1.tar.gz
-  swifttool_version: 'v0.0.1'
+  swifttool_url: https://github.com/blueboxgroup/swifttool/archive/v0.0.2.dev27.tar.gz
+  swifttool_version: 'v0.0.2.dev27'
   swifttool_method: 'git'
+  swifttool_pypi_mirror: https://pypi-mirror.openstack.blueboxgrid.com/bluebox/openstack
+  monitoring:
+    sensu_checks:
+      check_ucarp_procs:
+        criticality: 'critical'
+      fstab_mounts:
+        criticality: 'critical'
+  rsync:
+      object:
+        max_connections: 8
+      container:
+        max_connections: 4
+      account:
+        max_connections: 2
+  cluster:
+        no_workers: 10
+        no_replicators: 2
+        no_auditors: 1
+        no_updaters: 1
+  venv_dir: '/opt/openstack/current/swift'

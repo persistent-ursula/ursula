@@ -1,18 +1,24 @@
-#!/usr/bin/env bash
+#!/bin/bash -x
 
 # if in jenkins, make the venv from the workspace and build ID
 # to allow concurrent runs.
 if [[ "$CI" == "jenkins" ]]; then
     VENV=$WORKSPACE/venv
+    USE_PRIVATE_IPS="true"
     virtualenv $VENV
     source $VENV/bin/activate
-    pip install -I pip==7.1.2
+    pip install -U pip
     pip install -U -r requirements.txt
 fi
 
 source $(dirname $0)/common
 
+USE_PRIVATE_IPS=${USE_PRIVATE_IPS:-"false"}
+
 ${ROOT}/test/check-deps
+
+echo "testenv_instance_prefix: ${testenv_instance_prefix}"
+echo "testenv_heat_stack_name: ${testenv_heat_stack_name}"
 
 echo "writing initial inventory file"
 mkdir -p ${ROOT}/envs/test
@@ -29,21 +35,18 @@ testenv_keypair_name: ${KEY_NAME}
 testenv_keypair_path: ${KEY_PATH}
 eof
 
-echo "destroying: ${VMS}"
+echo "deleting heat stack to destroy resources including VMs: ${VMS}"
 ${ROOT}/test/cleanup
 
-echo "booting ${VMS}"
-ursula "envs/test" ${ROOT}/playbooks/${TEST_ENV}/tasks/create.yml
+echo "creating heat template for test env ..."
+ursula --ursula-debug "envs/test" ${ROOT}/playbooks/${TEST_ENV}/tasks/create_heat_template.yml --extra-vars="use_private_ips=${USE_PRIVATE_IPS}"
 
 echo "building config"
-CONTROLLER_IP=$(private_ip ${testenv_instance_prefix}-controller-0)
 rm -rf ${ROOT}/envs/test/group_vars/
 rm -f ${ROOT}/envs/test/hosts
 mkdir -p ${ROOT}/envs/test/group_vars
-cp -r ${ROOT}/envs/example/ci/* ${ROOT}/envs/test
-echo "---" > ${ROOT}/envs/test/group_vars/all.yml
+cp -r ${ROOT}/envs/example/${TEST_ENV}/* ${ROOT}/envs/test
 echo "testenv_instance_prefix: ${testenv_instance_prefix}" >> ${ROOT}/envs/test/group_vars/all.yml
-echo "state_path_base: /opt/stack/data" >> ${ROOT}/envs/test/group_vars/all.yml
 
 echo "generating ssl cert for openstack.example.com"
 CERT_DIR=$(mktemp -d 2> /dev/null || mktemp -d -t 'setup')
@@ -58,89 +61,25 @@ cat >> ${ROOT}/envs/test/group_vars/all.yml <<eof
   key: |
 eof
 cat ${CERT_DIR}/openstack.example.com.key | sed 's/^/    /' >> ${ROOT}/envs/test/group_vars/all.yml
-cat >> ${ROOT}/envs/test/group_vars/all.yml <<eof
-neutron:
-   enable_external_interface: True
-eof
 UNDERCLOUD_CIDR="$(python -c 'import shade; cloud = shade.openstack_cloud(); print cloud.search_subnets("internal")[0]["cidr"]')"
 cat >> ${ROOT}/envs/test/defaults-2.0.yml <<eof
-logging:
-  follow:
-    global_fields:
-      cluster_name: "ci-test"
-  forward:
-    host: kibana.sea03.blueboxgrid.com
-    port: 4560
-undercloud_cidr: 
-  - ${UNDERCLOUD_CIDR}
+undercloud_cidr:
+  - cidr: ${UNDERCLOUD_CIDR}
 eof
 popd
 rm -rf ${CERT_DIR}
 
-echo "writing inventory file"
-if [[ ${TEST_ENV} == "ci-full" ]]; then
-  CONTROLLER_IP=$(private_ip ${testenv_instance_prefix}-controller-0)
-  cat > ${ROOT}/envs/test/hosts <<eof
-[db]
-$(public_ip "${testenv_instance_prefix}-controller-0")
-$(public_ip "${testenv_instance_prefix}-controller-1")
+echo "booting ${VMS} by heat, then copy files for pre-deployment"
+extra_args="--ursula-debug --provisioner=heat --heat-stack-name=${testenv_heat_stack_name}"
+ursula ${extra_args} "envs/test" ${ROOT}/playbooks/${TEST_ENV}/tasks/pre-deploy.yml -u ${LOGIN_USER}
 
-[db_arbiter]
-$(public_ip "${testenv_instance_prefix}-compute-0")
-
-[mongo_db]
-$(public_ip "${testenv_instance_prefix}-controller-0")
-$(public_ip "${testenv_instance_prefix}-controller-1")
-
-[mongo_arbiter]
-$(public_ip "${testenv_instance_prefix}-compute-0")
-
-[controller]
-$(public_ip "${testenv_instance_prefix}-controller-0")
-$(public_ip "${testenv_instance_prefix}-controller-1")
-
-[compute]
-$(public_ip "${testenv_instance_prefix}-compute-0")
-$(public_ip "${testenv_instance_prefix}-controller-0")
-$(public_ip "${testenv_instance_prefix}-controller-1")
-
-[network]
-$(public_ip "${testenv_instance_prefix}-controller-0")
-$(public_ip "${testenv_instance_prefix}-controller-1")
-
-[cinder_volume]
-$(public_ip "${testenv_instance_prefix}-compute-0")
-eof
-else
+if [[ ${TEST_ENV} == "ci-allinone" ]]; then
   CONTROLLER_IP=$(private_ip ${testenv_instance_prefix}-allinone)
-  cat > ${ROOT}/envs/test/hosts <<eof
-[db]
-$(public_ip "${testenv_instance_prefix}-allinone")
-
-[db_arbiter]
-$(public_ip "${testenv_instance_prefix}-allinone")
-
-[mongo_db]
-$(public_ip "${testenv_instance_prefix}-allinone")
-
-[controller]
-$(public_ip "${testenv_instance_prefix}-allinone")
-
-[compute]
-$(public_ip "${testenv_instance_prefix}-allinone")
-
-[network]
-$(public_ip "${testenv_instance_prefix}-allinone")
-
-[cinder_volume]
-$(public_ip "${testenv_instance_prefix}-allinone")
-eof
+else
+  CONTROLLER_IP=$(private_ip ${testenv_instance_prefix}-controller-0)
 fi
 
 echo "controller_primary: ${CONTROLLER_IP}" >> ${ROOT}/envs/test/group_vars/all.yml
-
-echo "copying files"
-ursula "envs/test" ${ROOT}/playbooks/${TEST_ENV}/tasks/pre-deploy.yml -u ${LOGIN_USER} --sudo
 
 ring_bell
 echo "vms are up: ${VMS} !!"

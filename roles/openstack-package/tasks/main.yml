@@ -2,19 +2,29 @@
 - name: "install {{ project_name }} package"
   apt: pkg="{{ package_name|default(openstack_package.package_name) }}"
        update_cache=yes cache_valid_time=3600
+  register: project_package
+  until: project_package|succeeded
+  retries: 5
+
+- name: set code has changed fact
+  set_fact:
+    code_has_changed: True
+  when: project_package | changed
 
 - name: setup openstack current base path
-  file: dest=/opt/openstack state=directory
+  file:
+    dest: /opt/openstack/current
+    state: directory
 
-- name: test whether current {{ project_name }} symlink exists
+- name: test whether current project symlink exists
   stat:
-    path: /opt/openstack/current
+    path: /opt/openstack/current/{{ project_name }}
   register: symlink_exists
 
 - name: setup current symlink
   file:
-    src: "{{ openstack_package.virtualenv_base }}"
-    dest: /opt/openstack/current
+    src: "{{ openstack_package.virtualenv_base }}/{{ project_name }}"
+    dest: /opt/openstack/current/{{ project_name }}
     state: link
   when: not symlink_exists.stat.exists or upgrade | default(false) | bool
 
@@ -40,5 +50,5 @@
   alternatives: name={{ item }}
                 path={{ openstack_package.virtualenv_base }}/{{ project_name }}/bin/{{ item }}
                 link=/usr/local/bin/{{ item }}
-  with_items: alternatives
+  with_items: "{{ alternatives|default([]) }}"
   when: alternatives is defined

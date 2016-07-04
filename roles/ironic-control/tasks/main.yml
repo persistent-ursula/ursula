@@ -6,6 +6,9 @@
     - tftp
     - syslinux
     - syslinux-common
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: create tftpboot
   file: path={{ ironic.tftpboot_path }}
@@ -53,6 +56,14 @@
   notify: restart ironic controller services
   # we want this to always be changed so that it can notify the service restart
   tags: db-migrate
+
+- name: trigger restart on upgrades
+  debug:
+    msg: "Triggering service restart for upgrade"
+  changed_when: True
+  notify: restart ironic services
+  when: code_has_changed | default('False') | bool and
+        upgrade | default('False') | bool
 
 - meta: flush_handlers
 

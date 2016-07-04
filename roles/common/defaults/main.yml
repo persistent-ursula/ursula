@@ -14,6 +14,9 @@ common:
   ntpd:
     servers: []
     #  - servertime.service.softlayer.com
+  serial_console:
+    enabled: True
+    name: ttyS0
   ssh_private_keys: []
   ssh:
     allow_from:
@@ -21,7 +24,7 @@ common:
       - ::/0
     disable_root: False
     disable_dns: True
-  pip_version: 7.1.2
+  pip_version: 8.0.2
   setuptools_version: system
   ursula_monitoring:
     path: /opt/ursula-monitoring
@@ -43,7 +46,17 @@ common:
   logging:
     debug: False
     verbose: True
-  serial_console: ttyS0
+  monitoring:
+    sensu_checks:
+      check_lro:
+        warning: False
+        enabled: True
+        devices: "{{ hostvars[inventory_hostname][primary_interface]|net_physical_devices|join(',') }}"
+      check_static_route:
+        criticality: 'critical'
+      check_raid:
+        criticality: 'critical'
+    scan_for_log_errors: False
 
 openstack:
   gem_sources:

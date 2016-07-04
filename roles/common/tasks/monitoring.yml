@@ -7,6 +7,9 @@
   with_items:
   - sensu
   - libfile-which-perl
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: sensu sudoers
   template: src=monitoring/sensu-sudoers dest=/etc/sudoers.d/sensu owner=root
@@ -66,8 +69,14 @@
 - name: enable and start sensu-client
   service: name=sensu-client state=started enabled=yes
 
+- name: override sensu-client startup
+  shell: update-rc.d sensu-client defaults
+
 - name: install sensu plugin pip modules
   pip: name=sensu_plugin version=0.1.0
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: sensu conf dir
   file: dest=/etc/sensu/conf.d/checks state=directory owner=root mode=0755
@@ -130,11 +139,11 @@
     - check-neutron-fip.sh
 
 - name: cpu check
-  sensu_check: name=cpu plugin=check-cpu.rb args='-w 80 -c 90 -p kvm'
+  sensu_check: name=cpu plugin=check-cpu.rb args='-w {{ monitoring.checks.cpu.warning }} -c {{ monitoring.checks.cpu.critical }} -p kvm'
   notify: restart sensu-client
 
 - name: network interface traffic check
-  sensu_check: name=network_interface_traffic plugin=check-netif.rb state=absent 
+  sensu_check: name=network_interface_traffic plugin=check-netif.rb state=absent
   notify: restart sensu-client
 
 - name: disk check
@@ -186,6 +195,19 @@
                        args='--scheme {{ monitoring.graphite.host_prefix }}.network'
   notify: restart sensu-client
 
+- name: check for static route on multi subnet
+  sensu_check: name=check-static-route-{{ item.cidr | regex_replace('(?P<host>.+)/(?P<size>.+)', '\\g<host>_\\g<size>') }} plugin=check-static-route.py
+               args='--subnet {{ item.cidr }} --gateway {{ item.gateway }} --criticality {{ common.monitoring.sensu_checks.check_static_route.criticality }}'
+  with_items: "{{ undercloud_cidr }}"
+  when: "{{ undercloud_cidr is defined and undercloud_cidr | length > 1 }}"
+  notify: restart sensu-client
+
+- name: check that large receive offload (LRO) is off
+  sensu_check: name=check-large-receive-offload plugin=check-large-receive-offload.py
+               args="--devices {{ common.monitoring.sensu_checks.check_lro.devices }} {{ ' --warning' if common.monitoring.sensu_checks.check_lro.warning|bool else ' ' }}"
+  when: common.monitoring.sensu_checks.check_lro.enabled|bool
+  notify: restart sensu-client
+
 - name: add sensu to adm group so it can read log files
   user: name=sensu groups=adm append=yes
 
@@ -197,20 +219,9 @@
 - name: log scanning caching dir
   file: path=/var/cache/check-log owner=sensu state=directory
 
-- name: enable log scanning
-  sensu_check: name=check-log-{{ item }} plugin=check-log.rb use_sudo=true
-               auto_resolve=false interval=60
-               args="-f /var/log/upstart/{{ item }}.log -q ERROR --silent"
-  with_items: logs_to_scan
-  when: monitoring.scan_for_log_errors
-  notify: restart sensu-client
-
-- name: disable log scanning
-  file: path=/etc/sensu/conf.d/checks/check-log-{{ item }}.json state=absent
-  with_items: logs_to_scan
-  when: monitoring.scan_for_log_errors == false
-  notify: restart sensu-client
-
 - name: raid check
-  sensu_check: name=check-raid plugin=check-raid.sh interval=300 occurrences=1
-  notify: restart sensu-client
+  sensu_check_dict:
+    name: check-raid
+    check: "{{ sensu_checks.common.check_raid }}"
+  notify: restart sensu-client missing ok
+  when: common.hwraid.enabled|bool

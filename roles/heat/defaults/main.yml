@@ -1,25 +1,21 @@
 ---
+project_name: heat
 heat:
   enabled: True
   heartbeat_timeout_threshold: 30
   source:
-    rev: 'stable/kilo'
+    rev: 'stable/mitaka'
+    constrain: True
+    upper_constraints: 'https://raw.githubusercontent.com/openstack/requirements/stable/mitaka/upper-constraints.txt'
     python_dependencies:
-      - { name: mysql-python }
-      - { name: functools32 }
-      - { name: requests, version: 2.7.0 }
-      - { name: kombu>=3.0.7 }
-      - { name: amqp>=1.4.0 }
-    system_dependencies:
-      - libmysqlclient-dev
+      - { name: PyMySQL }
+    system_dependencies: []
   alternatives:
     - heat-api
     - heat-api-cfn
     - heat-api-cloudwatch
     - heat-db-setup
     - heat-engine
-    - heat-keystone-setup
-    - heat-keystone-setup-domain
     - heat-manage
   logs:
     - paths:
@@ -43,3 +39,11 @@ heat:
   cafile: "{{ ssl.cafile|default('/etc/ssl/certs/ca-certificates.crt') }}"
   plugin_dirs: []
   engine_workers: 4
+  api_workers: 5
+  monitoring:
+    sensu_checks:
+      check_heat_api:
+        criticality: 'critical'
+  auditing:
+    enabled: False
+    logging: False

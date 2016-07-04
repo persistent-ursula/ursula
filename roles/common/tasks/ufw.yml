@@ -1,6 +1,9 @@
 ---
 - name: install ufw
   apt: pkg=ufw
+  register: result
+  until: result|succeeded
+  retries: 5
 
 - name: permit ucarp (IP protocol 112)
   lineinfile: dest=/etc/ufw/before.rules
@@ -10,11 +13,11 @@
 
 - name: Permit SSH
   ufw: rule=allow to_port=22 proto=tcp src={{ item }}
-  with_items: common.ssh.allow_from
+  with_items: "{{ common.ssh.allow_from }}"
 
 - name: Permit unrestricted access from remainder of cluster
-  ufw: rule=allow from_ip={{ item }} proto=any
-  with_items: undercloud_cidr
+  ufw: rule=allow from_ip={{ item.cidr }} proto=any
+  with_items: "{{ undercloud_cidr }}"
   when: undercloud_cidr is defined
 
 - name: Do not enforce forwarding rules with UFW

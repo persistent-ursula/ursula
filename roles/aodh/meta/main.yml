@@ -1,0 +1,20 @@
+---
+dependencies:
+  - role: endpoints
+  - role: openstack-source
+    project_name: aodh
+    project_rev: "{{ aodh.source.rev }}"
+    alternatives: "{{ aodh.alternatives }}"
+    system_dependencies: "{{ aodh.source.system_dependencies }}"
+    python_dependencies: "{{ aodh.source.python_dependencies }}"
+    constrain: "{{ aodh.source.constrain }}"
+    upper_constraints: "{{ aodh.source.upper_constraints }}"
+    when: openstack_install_method == 'source'
+  - role: openstack-package
+    project_name: aodh
+    alternatives: "{{ aodh.alternatives }}"
+    when: openstack_install_method == 'package'
+  - role: monitoring-common
+    when: monitoring.enabled|default(True)|bool
+  - role: openstack-database
+    database_name: aodh
