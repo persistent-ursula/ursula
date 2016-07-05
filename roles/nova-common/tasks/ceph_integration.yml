@@ -13,23 +13,23 @@
            group=root
            mode=0644
 
-- name: fetch cinder keyring
-  slurp: path=/etc/ceph/ceph.client.cinder.keyring
+- name: fetch nova keyring
+  slurp: path=/etc/ceph/ceph.client.nova.keyring
   run_once: true
   delegate_to: "{{ groups['ceph_monitors'][0] }}"
-  register: cinder_keyring
+  register: nova_keyring
 
-- name: write cinder keyring
+- name: write nova keyring
   copy:
-    dest: "{{ cinder_keyring['source'] }}"
-    content: "{{ cinder_keyring['content'] | b64decode }}"
+    dest: "{{ nova_keyring['source'] }}"
+    content: "{{ nova_keyring['content'] | b64decode }}"
     mode: 0644
     #owner: cinder
     #group: cinder
 
 # used in nova.conf
 - name: fetch contents of uuid file
-  slurp: path=/etc/ceph/cinder_uuid
+  slurp: path=/etc/ceph/nova_uuid
   run_once: true
   delegate_to: "{{ groups['ceph_monitors'][0] }}"
-  register: cinder_uuid_file
+  register: nova_uuid_file
