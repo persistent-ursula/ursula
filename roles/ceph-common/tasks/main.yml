@@ -81,25 +81,24 @@
     dest: "{{ cinder_uuid_file['source'] }}"
     content: "{{ cinder_uuid_file['content'] | b64decode }}"
 
-# generate uuid for nova.conf and secret1.xml
-- name: generate nova uuid
-  shell: uuidgen > /etc/ceph/nova_uuid && truncate -s -1 /etc/ceph/nova_uuid
+- block:
+  # generate uuid for nova.conf and secret-nova.xml
+  - name: generate nova uuid
+    shell: uuidgen > /etc/ceph/nova_uuid && truncate -s -1 /etc/ceph/nova_uuid
          creates=/etc/ceph/nova_uuid
-  run_once: true
-  delegate_to:  "{{ groups['ceph_monitors'][0] }}"
-  when: nova.ceph_backend|bool
+    run_once: true
+    delegate_to:  "{{ groups['ceph_monitors'][0] }}"
 
-- name: fetch contents of nova_uuid file
-  slurp: path=/etc/ceph/nova_uuid
-  run_once: true
-  delegate_to: "{{ groups['ceph_monitors'][0] }}"
-  register: nova_uuid_file
-  when: nova.backend_ceph|bool
+  - name: fetch contents of nova_uuid file
+    slurp: path=/etc/ceph/nova_uuid
+    run_once: true
+    delegate_to: "{{ groups['ceph_monitors'][0] }}"
+    register: nova_uuid_file
   
-- name: copy nova_uuid to all hosts
-  copy:
-    dest: "{{ nova_uuid_file['source'] }}"
-    content: "{{ nova_uuid_file['content'] | b64decode }}"
+  - name: copy nova_uuid to all hosts
+    copy:
+      dest: "{{ nova_uuid_file['source'] }}"
+      content: "{{ nova_uuid_file['content'] | b64decode }}"
   when: nova.backend_ceph|bool
 
 - name: generate ceph configuration file

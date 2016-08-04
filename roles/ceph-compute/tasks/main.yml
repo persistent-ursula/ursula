@@ -43,47 +43,41 @@
 - name: set virsh secret
   shell: "virsh secret-set-value --secret {{ cinder_uuid_file.content | b64decode }} --base64 $(cat /etc/ceph/client.cinder.key)"
 
-# for nova user in ceph
-- name: create client.nova.key
-  shell: ceph auth get-key client.nova > /etc/ceph/client.nova.key
+- block:
+    # for nova user in ceph
+    - name: create client.nova.key
+      shell: ceph auth get-key client.nova > /etc/ceph/client.nova.key
          creates=/etc/ceph/client.nova.key
-  run_once: true
-  delegate_to: "{{ groups['ceph_monitors'][0] }}"
-  when: nova.backend_ceph|bool
+      run_once: true
+      delegate_to: "{{ groups['ceph_monitors'][0] }}"
 
-
-- name: fetch client.nova.key
-  slurp: path=/etc/ceph/client.nova.key
-  run_once: true
-  delegate_to: "{{ groups['ceph_monitors'][0] }}"
-  register: client_nova_key
-  when: nova.backend_ceph|bool
+    - name: fetch client.nova.key
+      slurp: path=/etc/ceph/client.nova.key
+      run_once: true
+      delegate_to: "{{ groups['ceph_monitors'][0] }}"
+      register: client_nova_key
   
-- name: write client.nova.key
-  copy:
-    dest: /etc/ceph/client.nova.key
-    content: "{{ client_nova_key['content'] | b64decode }}"
-  when: nova.backend_ceph|bool
+    - name: write client.nova.key
+      copy:
+        dest: /etc/ceph/client.nova.key
+        content: "{{ client_nova_key['content'] | b64decode }}"
   
-- name: fetch contents of nova_uuid file
-  slurp: path=/etc/ceph/nova_uuid
-  run_once: true
-  delegate_to: "{{ groups['ceph_monitors'][0] }}"
-  register: nova_uuid_file
-  when: nova.backend_ceph|bool
+    - name: fetch contents of nova_uuid file
+      slurp: path=/etc/ceph/nova_uuid
+      run_once: true
+      delegate_to: "{{ groups['ceph_monitors'][0] }}"
+      register: nova_uuid_file
 
-- name: generate ceph secret-nova xml file
-  template: src=etc/ceph/secret-nova.xml
-            dest=/etc/ceph/secret-nova.xml
-            owner=root
-            group=root
-            mode=0644
-  when: nova.backend_ceph|bool
+    - name: generate ceph secret-nova xml file
+      template: src=etc/ceph/secret-nova.xml
+                dest=/etc/ceph/secret-nova.xml
+                owner=root
+                group=root
+                mode=0644
 
-- name: define virsh secret for nova
-  shell: virsh secret-define --file /etc/ceph/secret-nova.xml
-  when: nova.backend_ceph|bool
+    - name: define virsh secret for nova
+      shell: virsh secret-define --file /etc/ceph/secret-nova.xml
 
-- name: set virsh secret for nova
-  shell: "virsh secret-set-value --secret {{ nova_uuid_file.content | b64decode }} --base64 $(cat /etc/ceph/client.nova.key)"
+    - name: set virsh secret for nova
+      shell: "virsh secret-set-value --secret {{ nova_uuid_file.content | b64decode }} --base64 $(cat /etc/ceph/client.nova.key)"
   when: nova.backend_ceph|bool
